@@ -432,7 +432,7 @@ router.post("/market", async (req, res) => {
 
             // console.log(passive,"++");
             // console.log(aggr,"++");
-            if(marketP.length > 0 && passive.length > 0 && marketP[0].price < passive[0].price){
+            if(marketP.length > 0 && passive.length > 0 && marketP[0].price <= passive[0].price){
                 findPrices = [...aggr,...passive];
             }
             else if(marketP.length > 0 && passive.length >0 && marketP[0].price > passive[0].price){
@@ -447,7 +447,7 @@ router.post("/market", async (req, res) => {
                 findPrices = [ fele, ...aggr, ...passivenew ];
             }
             else{
-                findPrices = [...aggr];
+                findPrices = [...passive ,...aggr];
             }
             // console.log(findPrices,"++");
 
@@ -587,7 +587,7 @@ router.post("/market", async (req, res) => {
                 "trade":"buy","id":{$not: {$eq: trader._id?.toString()}},"price":{$not: {$eq:-1}}
                 }).sort({price:-1, date:1});
 
-            if(marketP.length > 0 && passive.length > 0 && marketP[0].price > passive[0].price){
+            if(marketP.length > 0 && passive.length > 0 && marketP[0].price >= passive[0].price){
                 findPrices = [...aggr,...passive];
             }
             else if(marketP.length > 0 && passive.length >0 && marketP[0].price < passive[0].price){
@@ -602,7 +602,7 @@ router.post("/market", async (req, res) => {
                 findPrices = [ fele, ...aggr, ...passivenew ];
             }
             else{
-                findPrices = [...aggr];
+                findPrices = [...passive, ...aggr];
             }
 
             for (let index = 0; index < findPrices.length; index++) {
