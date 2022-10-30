@@ -6,18 +6,19 @@ const PendingStocks = require("../models/PendingStock");
 const TranHistory = require("../models/TranHistory");
 const { findOneAndUpdate, findByIdAndUpdate } = require('../models/MarketPrice');
 
+//Checks for trade of aggressive trdaers at the beginnning when no market price is available
 const checkAggressive = async()=>{
     try{
     const marketP = await MarketPrice.find({}).sort({date:-1}).limit(1);
     if(marketP.length != 1) return;
     else{
         const pr = marketP[0].price;
-        let aggBuyers = await PendingStocks.find({ "trade":"buy", "price": -1});
+        let aggBuyers = await PendingStocks.find({ "trade":"buy", "price": -1}); //getting all agressive buyer
 
         for (let index = 0; index < aggBuyers.length; index++) {
             const element = aggBuyers[index];
             const iid = new RegExp(element.id);
-            let aggSellers = await PendingStocks.find({ "trade":"sell", "price": -1,"id":{$not:iid} });
+            let aggSellers = await PendingStocks.find({ "trade":"sell", "price": -1,"id":{$not:iid} }); //getting all agressive seller which is not buyer
 
             for (let index2 = 0; index2 < aggSellers.length; index2++) {
                 const seller = aggSellers[index2];
@@ -90,79 +91,12 @@ const checkAggressive = async()=>{
         }
 
         return;
-
-        const aggSellers = await PendingStocks.find({ "trade":"sell", "price": -1 });
-        let i = 0, j = 0;
-
-        while(i < aggBuyers.length && j< aggSellers.length){
-            if(aggBuyers[i].qty == aggSellers[j].qty){
-                    // if(aggBuyers[i].id !== )
-                    //Deleting Pending list
-                    await PendingStocks.findByIdAndDelete(aggBuyers[i]._id);
-                    await PendingStocks.findByIdAndDelete(aggSellers[j]._id);
-                    //Updating seller info
-                    await Users.findByIdAndUpdate(aggSellers[j].id,{$inc:{ "fiat": pr*aggBuyers[i].qty, "stocks": -aggBuyers[i].qty}});
-                    //Updating buyer info
-                    await Users.findByIdAndUpdate(aggBuyers[j].id,{$inc:{ "fiat": -pr*aggBuyers[i].qty, "stocks": aggBuyers[i].qty}});
-                
-                    //creating transaction history
-                    const newTransaction = new TranHistory({
-                        qty:aggBuyers[i].qty,
-                        Sid: aggSellers[i].id,
-                        Bid: aggBuyers[i].id,
-                        price: pr,
-                        date: Date.now()
-                    })
-                    await newTransaction.save();
-                    i++;j++;
-            }else if(aggBuyers[i].qty > aggSellers[j].qty){
-                //Updating Pending list
-                await PendingStocks.findByIdAndUpdate(aggBuyers[i]._id, {$inc:{ "qty": -aggSellers[j].qty }});
-                await PendingStocks.findByIdAndDelete(aggSellers[j]._id);
-                //Updating seller info
-                await Users.findByIdAndUpdate(aggSellers[j].id,{$inc:{ "fiat": pr*aggSellers[j].qty, "stocks": -aggSellers[j].qty}});
-                //Updating buyer info
-                await Users.findByIdAndUpdate(aggBuyers[i].id,{$inc:{ "fiat": -pr*aggSellers[j].qty, "stocks": aggSellers[j].qty}});
-                
-                //creating transaction history
-                const newTransaction = new TranHistory({
-                    qty: aggSellers[j].qty,
-                    Sid: aggSellers[j].id,
-                    Bid: aggBuyers[i].id,
-                    price: pr,
-                    date: Date.now()
-                })
-                await newTransaction.save();
-                aggBuyers[i].qty -= aggSellers[j].qty
-                j++;
-            }else{
-                //Updating Pending list
-                await PendingStocks.findByIdAndDelete(aggBuyers[i]._id);
-                await PendingStocks.findByIdAndUpdate(aggSellers[j]._id, {$inc:{ "qty": -aggBuyers[i].qty }});
-                //Updating seller info
-                await Users.findByIdAndUpdate(aggSellers[j].id,{$inc:{ "fiat": pr*aggBuyers[i].qty, "stocks": -aggBuyers[i].qty.qty}});
-                //Updating buyer info
-                await Users.findByIdAndUpdate(aggBuyers[i].id,{$inc:{ "fiat": -pr*aggBuyers[i].qty, "stocks": aggBuyers[i].qty.qty}});
-            
-                //creating transaction history
-                const newTransaction = new TranHistory({
-                    qty: aggBuyers[i].qty,
-                    Sid: aggSellers[j].id,
-                    Bid: aggBuyers[i].id,
-                    price: pr,
-                    date: Date.now()
-                })
-                await newTransaction.save();
-                aggSellers[j].qty -= aggBuyers[i].qty;
-                i++;
-            }
-        }
     }
     }catch(e){
         console.log(e)
     }
 }
-
+//When order type is limit
 router.post("/limit", async (req, res) => {
     try {
         let { trade, username, price ,qty } = req.body;
@@ -188,8 +122,8 @@ router.post("/limit", async (req, res) => {
             });
             const iid = new RegExp(trader._id);
             const findPrices = await PendingStocks.find(
-                { $or: [{ "trade":"sell", "price":price ,"id":{$not:iid} }, { "trade":"sell", "price": -1 ,"id":{$not:iid} }] }
-            ).sort({date:1});
+                { $or: [{ "trade":"sell", "price":{$lte: price} ,"id":{$not:iid} }, { "trade":"sell", "price": -1 ,"id":{$not:iid} }] }
+            ).sort({price:1,date:1});
 
             // { $or: [{ "trade":"sell", "price":price ,"id":{$not:iid} }, { "trade":"sell", "price": -1 ,"id":{$not:iid} }] }
 
@@ -272,8 +206,8 @@ router.post("/limit", async (req, res) => {
         }else{ //Sell
             const iid = new RegExp(trader._id);
             const findPrices = await PendingStocks.find(
-                { $or: [{ "trade":"buy", "price":price ,"id":{$not:iid} }, { "trade":"buy", "price": -1 ,"id":{$not:iid} }] }
-            ).sort({date:1});
+                { $or: [{ "trade":"buy", "price":{$gte:price} ,"id":{$not:iid} }, { "trade":"buy", "price": -1 ,"id":{$not:iid} }] }
+            ).sort({price:-1,date:1});
 
             for (let index = 0; index < findPrices.length; index++) {
                 if(qty === 0) break;

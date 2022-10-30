@@ -85,7 +85,7 @@ function Dashboard(props) {
                 setYdata([...yalldata]);
                 var sum = 0;
                 yalldata.forEach(function(num) { sum += num });
-                setAvg(yalldata ? yalldata.slice(-1)*100/sum : 0)
+                setAvg(yalldata ? (yalldata[yalldata.length-1]-(sum/yalldata.length))*100/(sum/yalldata.length) : 0)
                 // setGraphcomp(<Graph xdata = {xalldata} ydata={yalldata}/>)
             }
         } catch (e) {

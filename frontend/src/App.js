@@ -10,7 +10,7 @@ function App() {
   const [mode, setMode] = useState("light")
 
   return (
-    <div className="App" style={mode==="light"? {backgroundColor: "#fff"}: {backgroundColor: "#070B28"} }>
+    <div className="App" style={mode==="light"? {backgroundColor: "#F0F3F8"}: {backgroundColor: "#070B28"} }>
       <Router>
         <Sidebar mode={mode} setMode={setMode}/>
         <Routes>
